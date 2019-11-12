@@ -1,0 +1,134 @@
+---
+title: "InititalAnalysis"
+author: "Antonia"
+date: "12 11 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+```
+
+
+```{r load}
+data = read.csv("data.csv", sep = ";")
+```
+
+
+
+```{r}
+colnames(data)
+
+```
+
+```{r, correlationWitthinModels}
+
+#EUT
+cor(data[,4:5])
+
+#SEM
+cor(data[,6:7])
+
+#SEU
+cor(data[,8:11])
+
+##PT 1
+cor(data[,12:16])
+
+##PT 2
+cor(data[,17:21])
+
+##CPT TK
+cor(data[,22:26])
+
+##CPT LBW
+cor(data[,27:33])
+
+##CPT prelec
+cor(data[,34:40])
+
+##Dual
+cor(data[,41:42])
+
+##Regrett Bell
+cor(data[,43:47])
+
+##Regrett LS
+cor(data[,48:53])
+
+##Saliebce
+cor(data[,54:58])
+
+##Aspiration
+cor(data[,59:63])
+
+##BelowMean
+cor(data[,64:65])
+
+##Certainty Equivalent
+
+##Coefficient of Variation
+cor(data[,67:68])
+
+#Decision field theory
+cor(data[,69:70])
+
+#Distracted Decision field theory
+cor(data[,71:73])
+
+#Disappointment Bell
+cor(data[,74:75])
+
+#Disappointment LS1
+cor(data[,76:78])
+
+#Disappointment LS2
+cor(data[,79:82])
+
+
+#Disappointment DC1
+cor(data[,83:87])
+
+#Disappointment DC2
+cor(data[,88:93])
+
+#Dual System 1
+cor(data[,94:96])
+
+
+#Dual System LOB
+cor(data[,97:100])
+
+#Mean Alpha target
+cor(data[,100:104])
+
+#Mean Below target
+cor(data[,105:107])
+
+#Mean STd target
+cor(data[,105:107])
+
+    
+    
+    #.....
+```
+
+
+```{r}
+
+library(stringr)
+
+Epsilons = str_detect(colnames(data), "epsilon")
+
+sort(apply(cor(data[,which(Epsilons == T)]),2,mean))
+
+
+
+Gammas = str_detect(colnames(data), "gamma")
+
+sort(apply(cor(data[,which(Gammas == T)]),2,mean))
+
+
+
+
+```
