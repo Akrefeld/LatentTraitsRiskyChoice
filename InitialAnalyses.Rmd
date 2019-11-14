@@ -7,6 +7,8 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
+library(knitr)
+library(stringr)
 ```
 
 
@@ -19,114 +21,72 @@ data = read.csv("data.csv", sep = ";")
 ```{r}
 colnames(data)
 
+data = data[ , order(names(data))]
+#colnames(data)
+
+modelNames = word(colnames(data),1, sep = "\\_")
+paramNames = sub('.*\\_', '', colnames(data))
+
+numParamModel = summary(as.factor(modelNames))
+
 ```
 
 ```{r, correlationWitthinModels}
 
-#EUT
-cor(data[,4:5])
+ ### create array Model Name, number Parameters,max(abs(cor)), mean(abs(cor))  
 
-#SEM
-cor(data[,6:7])
+CorrModelParams = as.data.frame(NA, nrow = c(length(unique(modelNames))), ncol= 4)
+accNumbParams = 0 # strting index for columbs in data
+for (m in 1:length(unique(modelNames))){
+datatemp = data[,(accNumbParams+1) : (accNumbParams + as.numeric(numParamModel[unique(modelNames)[m]]))]
+#print(colnames(datatemp))
 
-#SEU
-cor(data[,8:11])
+CorrModelParams[m,1] = unique(modelNames)[m]
+CorrModelParams[m,2] = numParamModel[unique(modelNames)[m]]
+if (numParamModel[unique(modelNames)[m]] > 1) {
+  
+  print(kable(round(cor(datatemp),2)))
+cors = abs(cor(datatemp))
+cors[cors == 1] = NA
 
-##PT 1
-cor(data[,12:16])
+CorrModelParams[m,3] = max(cors, na.rm = T)
+CorrModelParams[m,4] = mean(cors, na.rm = T)
+}
+accNumbParams = cumsum(numParamModel)[m]
+}
 
-##PT 2
-cor(data[,17:21])
-
-##CPT TK
-cor(data[,22:26])
-
-##CPT LBW
-cor(data[,27:33])
-
-##CPT prelec
-cor(data[,34:40])
-
-##Dual
-cor(data[,41:42])
-
-##Regrett Bell
-cor(data[,43:47])
-
-##Regrett LS
-cor(data[,48:53])
-
-##Saliebce
-cor(data[,54:58])
-
-##Aspiration
-cor(data[,59:63])
-
-##BelowMean
-cor(data[,64:65])
-
-##Certainty Equivalent
-
-##Coefficient of Variation
-cor(data[,67:68])
-
-#Decision field theory
-cor(data[,69:70])
-
-#Distracted Decision field theory
-cor(data[,71:73])
-
-#Disappointment Bell
-cor(data[,74:75])
-
-#Disappointment LS1
-cor(data[,76:78])
-
-#Disappointment LS2
-cor(data[,79:82])
+colnames(CorrModelParams) = c("Name", "nPars", "maxnCor", "meanCor")
 
 
-#Disappointment DC1
-cor(data[,83:87])
-
-#Disappointment DC2
-cor(data[,88:93])
-
-#Dual System 1
-cor(data[,94:96])
-
-
-#Dual System LOB
-cor(data[,97:100])
-
-#Mean Alpha target
-cor(data[,100:104])
-
-#Mean Below target
-cor(data[,105:107])
-
-#Mean STd target
-cor(data[,105:107])
-
-    
-    
-    #.....
 ```
 
 
 ```{r}
 
 library(stringr)
-
+Sigmas = str_detect(colnames(data), "sigma")
 Epsilons = str_detect(colnames(data), "epsilon")
-
-sort(apply(cor(data[,which(Epsilons == T)]),2,mean))
-
-
-
+CPT = str_detect(colnames(data), "CPT")
 Gammas = str_detect(colnames(data), "gamma")
+## Mean correlation of model specific epsilon, wiht other epsilons ___ must consider rank order correlation
+EpsilonsCorr = apply(abs(cor(data[,which(Epsilons == T)], method = "spearman")),2,mean)
+kable(round(cor(data[,which(Epsilons == T)]),2))
+EpsilonsCorr
+GammasCorr = apply(abs(cor(data[,which(Gammas == T)], method = "spearman")),2,mean)
+kable(round(cor(data[,which(Gammas == T)]),2))
+GammasCorr
 
-sort(apply(cor(data[,which(Gammas == T)]),2,mean))
+# 
+# ## Mean absolute Param Correlations in Models with Epsilon
+plot(CorrModelParams[CorrModelParams$Name %in% modelNames[which(Epsilons == T)],4],EpsilonsCorr)
+
+plot(CorrModelParams[CorrModelParams$Name %in% modelNames[which(Gammas == T)],4],GammasCorr)
+CorrModelParams[!(CorrModelParams$Name %in% modelNames[which(Epsilons == T)]),4]
+# 
+# ## Mean absolute Param Correlations in Models with Gamma
+# CorrModelParams[CorrModelParams$Name %in% modelNames[which(Gammas == T)],4]
+# CorrModelParams[!(CorrModelParams$Name %in% modelNames[which(Gammas == T)]),4]
+
 
 
 
