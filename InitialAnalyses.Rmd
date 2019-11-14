@@ -29,13 +29,21 @@ paramNames = sub('.*\\_', '', colnames(data))
 
 numParamModel = summary(as.factor(modelNames))
 
+
 ```
+
+1. Correlation between parameters within the models
+
+- calculate correlation betwen parameters in each model
+
+- create Array includinng names Numb of Parameters, mean and max correlation per Model
+
+
 
 ```{r, correlationWitthinModels}
 
- ### create array Model Name, number Parameters,max(abs(cor)), mean(abs(cor))  
 
-CorrModelParams = as.data.frame(NA, nrow = c(length(unique(modelNames))), ncol= 4)
+CorrModelParams = as.data.frame(NA, nrow = c(length(unique(modelNames))), ncol= 5)
 accNumbParams = 0 # strting index for columbs in data
 for (m in 1:length(unique(modelNames))){
 datatemp = data[,(accNumbParams+1) : (accNumbParams + as.numeric(numParamModel[unique(modelNames)[m]]))]
@@ -45,20 +53,29 @@ CorrModelParams[m,1] = unique(modelNames)[m]
 CorrModelParams[m,2] = numParamModel[unique(modelNames)[m]]
 if (numParamModel[unique(modelNames)[m]] > 1) {
   
-  print(kable(round(cor(datatemp),2)))
+print(kable(round(cor(datatemp),2)))
 cors = abs(cor(datatemp))
 cors[cors == 1] = NA
 
 CorrModelParams[m,3] = max(cors, na.rm = T)
 CorrModelParams[m,4] = mean(cors, na.rm = T)
 }
+
+CorrModelParams[m,5] = paste(paramNames[modelNames == unique(modelNames)[m]], collapse = ", ")
 accNumbParams = cumsum(numParamModel)[m]
 }
 
-colnames(CorrModelParams) = c("Name", "nPars", "maxnCor", "meanCor")
+colnames(CorrModelParams) = c("Name", "nPars", "maxCor", "meanCor", "Pars")
+
+head(CorrModelParams)
 
 
 ```
+
+2. Correlation beteen scaling and curvature parameters
+
+
+This shoudl be extended to probability weighting parameters, different error parameters. Would be great to add the identification and type of the noise parameters to the excel file. Same for the others. Optimally we would have a list with all that information, including the formular wirtten down, in R.
 
 
 ```{r}
@@ -70,17 +87,22 @@ CPT = str_detect(colnames(data), "CPT")
 Gammas = str_detect(colnames(data), "gamma")
 ## Mean correlation of model specific epsilon, wiht other epsilons ___ must consider rank order correlation
 EpsilonsCorr = apply(abs(cor(data[,which(Epsilons == T)], method = "spearman")),2,mean)
-kable(round(cor(data[,which(Epsilons == T)]),2))
+#kable(round(cor(data[,which(Epsilons == T)]),2))
+mean(cor(data[,which(Epsilons == T)], method = "spearman"))
+
 EpsilonsCorr
 GammasCorr = apply(abs(cor(data[,which(Gammas == T)], method = "spearman")),2,mean)
-kable(round(cor(data[,which(Gammas == T)]),2))
+# kable(round(cor(data[,which(Gammas == T)]),2))
+mean(cor(data[,which(Gammas == T)], method = "spearman"))
 GammasCorr
+
+
 
 # 
 # ## Mean absolute Param Correlations in Models with Epsilon
-plot(CorrModelParams[CorrModelParams$Name %in% modelNames[which(Epsilons == T)],4],EpsilonsCorr)
+CorrModelParams[CorrModelParams$Name %in% modelNames[which(Epsilons == T)],4]
 
-plot(CorrModelParams[CorrModelParams$Name %in% modelNames[which(Gammas == T)],4],GammasCorr)
+CorrModelParams[CorrModelParams$Name %in% modelNames[which(Gammas == T)],4]
 CorrModelParams[!(CorrModelParams$Name %in% modelNames[which(Epsilons == T)]),4]
 # 
 # ## Mean absolute Param Correlations in Models with Gamma
@@ -89,6 +111,19 @@ CorrModelParams[!(CorrModelParams$Name %in% modelNames[which(Epsilons == T)]),4]
 
 
 
-
-
 ```
+
+3. CHeck for differences between Experiments
+
+```{r}
+###  Diffferences between Experiments
+
+anova(lm(CPT.TK__epsilon~EXPERIMENT, data = data))
+round(with(data, tapply(CPT.TK__epsilon, EXPERIMENT, mean)),3)
+## where do these extreme values come from?
+round(with(data, tapply(CPT.TK__epsilon, EXPERIMENT, median)),3)
+
+anova(lm(CPT.TK__gamma~EXPERIMENT, data = data))
+with(data, tapply(CPT.TK__gamma, EXPERIMENT, mean))
+with(data, tapply(CPT.TK__gamma, EXPERIMENT, median))
+  ```
