@@ -1,30 +1,54 @@
 ---
 title: "InititalAnalysis"
 author: "Antonia"
-date: "12 11 2019"
-output: html_document
+date: "04 23 2020"
+output:  
+  html_document:
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(echo = T)
 library(knitr)
 library(stringr)
+library(polycor)
 ```
 
 
 ```{r load}
 data = read.csv("data.csv", sep = ";")
+data2 = read.csv("gain_parameters.csv", sep = ";")
+colnames(data2)[1:2]= colnames(data)[1:2]
+cols <- intersect(colnames(data), colnames(data2))
+
+data2 = data2[,order(names(data2))]
+data = data[,order(names(data))]
+data = rbind(data[,cols],data2[,cols])
+
 dataFit = read.csv("mixed_bic_values.csv", sep = ";")
+dataFit2 = read.csv("gain_bic_values.csv", sep = ";")
+
+cols <- intersect(colnames(dataFit), colnames(dataFit2))
+dataFit = rbind(dataFit[,cols],dataFit2[,cols])
 #str(dataFit)
 #sort(apply(dataFit[,3:56],2,mean))
-goodfitnames = names(which(apply(dataFit[,3:56],2,mean) <111.39249))
 
-meanBIC = apply(dataFit[,3:56], 2, mean)
+# retun model names with mean BIC better than Baseline
+#goodfitnames = names(which(apply(dataFit[,3:56],2,sum) <sum(dataFit[,"Baseline"])))
 
+goodfitnames = names(which(apply(dataFit[,3:55],2,sum) <sum(dataFit[,"Baseline"])))
+
+#sumBIC = apply(dataFit[,3:56], 2, sum)
+sumBIC = apply(dataFit[,3:55], 2, sum)
+#create vectors for Experiemnt and ID
 Experiment = data$EXPERIMENT
 Id = data$ï..SUBJ.ID
+#remove these varibales from the datafile used for the analysis
 data= data[,-c(which(colnames(data) == "EXPERIMENT"),
 which(colnames(data) == "ï..SUBJ.ID") )]
+#remove identical parameters
+# identicparams  = unique(which(cor(data) > .99 & cor(data) < 1, arr.ind = T)[,2])
+# data = data[, -identicparams[-1]] 
 
 ```
 
@@ -53,11 +77,9 @@ numParamModel = summary(as.factor(modelNames))
 
 ```
 
-1. Correlation between parameters within the models
+## 1. Correlation between parameters within the models
 
-- calculate correlation betwen parameters in each model
-
-- create Array includinng names Numb of Parameters, mean and max correlation per Model
+The following tables summarize the parameter correlations within each model.
 
 
 
@@ -73,48 +95,59 @@ datatemp = data[,(accNumbParams+1) : (accNumbParams + as.numeric(numParamModel[u
 CorrModelParams[m,1] = unique(modelNames)[m]
 CorrModelParams[m,2] = numParamModel[unique(modelNames)[m]]
 if (numParamModel[unique(modelNames)[m]] > 1) {
-  
+meanExp = NULL
+  for (p in 1:as.numeric(numParamModel[unique(modelNames)[m]])){
+meanExp  = cbind(meanExp,tapply(datatemp[,p],Experiment, mean))
+  }
+    
 print(kable(round(cor(datatemp),2)))
+  
 cors = abs(cor(datatemp))
 cors[cors == 1] = NA
 
-CorrModelParams[m,3] = max(cors, na.rm = T)
-CorrModelParams[m,4] = mean(cors, na.rm = T)
+CorrModelParams[m,3] = max(abs(cors), na.rm = T)
+CorrModelParams[m,4] = mean(abs(cors), na.rm = T)
 }
-
 CorrModelParams[m,5] = paste(paramNames[modelNames == unique(modelNames)[m]], collapse = ", ")
+
+CorrModelParams[m,6] = mean(apply(meanExp,2, sd)/apply(meanExp,2, mean))
 accNumbParams = cumsum(numParamModel)[m]
 }
 
-colnames(CorrModelParams) = c("Name", "nPars", "maxCor", "meanCor", "Pars")
+colnames(CorrModelParams) = c("Name", "nPars", "maxCor", "meanCor", "Pars", "meanExpCV")
 
 for ( m in 1:length(CorrModelParams[,1])){
   
-  CorrModelParams$meanFit[m] = meanBIC[which(names(meanBIC) == CorrModelParams$Name[m])]
-  
+  CorrModelParams$meanFit[m] =sumBIC[which(names(sumBIC) == CorrModelParams$Name[m])]
   
 }
 
-cor.test(CorrModelParams$meanFit, CorrModelParams$meanCor)
-plot(CorrModelParams$meanFit, CorrModelParams$meanCor)
-
-head(CorrModelParams)
-
-CorrModelParams[order(CorrModelParams$meanCor, decreasing = T),]
 
 #the larger the numbe rof params, the smaller the correlations
-cor.test(CorrModelParams$nPars, CorrModelParams$meanCor)
+#cor.test(CorrModelParams$nPars, CorrModelParams$meanCor)
+```
+
+The folllowing tables sorts the models by the mean correaltion between the parameters, reporting first the 10 models with the highest correlations and subsequently the 10 models with the lowest correlations
+```{r}
+
+CorrModelParams[order(CorrModelParams$meanCor, decreasing = T),][1:10,]
+
+CorrModelParams[order(CorrModelParams$meanCor, decreasing = F),][1:10,]
+```
+
+There seeems to be some relation between the model fit, (the average indiviudal BIC) and the correlation between parameters. This indicates that higher correlation is associated with better fit. this might be a function of the parameters in the model that increase fit, but also tend to merely identifiable
 
 
+```{r}
 
+plot(CorrModelParams$meanFit[ CorrModelParams$meanFit<sum(dataFit[,"Baseline"])], CorrModelParams$meanCor[ CorrModelParams$meanFit<sum(dataFit[,"Baseline"])], xlab = "sumBIC", ylab ="meanCor")
+plot(CorrModelParams$nPars, CorrModelParams$meanCor)
 
 ```
 
-2. Correlation beteen scaling and curvature parameters
+## 2. Correlation of similar mdoel parameter across models
 
-
-This shoudl be extended to probability weighting parameters, different error parameters. Would be great to add the identification and type of the noise parameters to the excel file. Same for the others. Optimally we would have a list with all that information, including the formular wirtten down, in R.
-
+I calculated the correlation between for instance the response noise parameters across different models to estimate, which model's reponse noise parameter explains most variacne in the pther models' response noise parameters. For now, I did this only for resposne noise (epsilon), curvature (gamma) and probability weighting (Tau). This analysis can be extended to other structures and parameters that are similar across models. The output return the list of parameters and their average correlation with the other corresponding parameters in decreasing order. In other words, the model's parameter on top of the list can be assumed to be the most general implementation of the parameter. 
 
 ```{r}
 
@@ -124,50 +157,60 @@ Epsilons = str_detect(colnames(data), "epsilon")
 CPT = str_detect(colnames(data), "CPT")
 Gammas = str_detect(colnames(data), "gamma")
 
+Taus = str_detect(colnames(data), "tau")
+
 ## Mean correlation of model specific epsilon, wiht other epsilons ___ must consider rank order correlation
 EpsilonsCorr = apply(abs(cor(data[,which(Epsilons == T)], method = "spearman")),2,mean)
 #kable(round(cor(data[,which(Epsilons == T)]),2))
-mean(cor(data[,which(Epsilons == T)], method = "spearman"))
+mean(abs(cor(data[,which(Epsilons == T)], method = "spearman")))
 sort(EpsilonsCorr, decreasing = T)
 
 GammasCorr = apply(abs(cor(data[,which(Gammas == T)], method = "spearman")),2,mean)
 # kable(round(cor(data[,which(Gammas == T)]),2))
-mean(cor(data[,which(Gammas == T)], method = "spearman"))
+mean(abs(cor(data[,which(Gammas == T)], method = "spearman")))
 sort(GammasCorr, decreasing = T)
+
+TausCorr = apply(abs(cor(data[,which(Taus == T)], method = "spearman")),2,mean)
+# kable(round(cor(data[,which(Gammas == T)]),2))
+mean(abs(cor(data[,which(Taus == T)], method = "spearman")))
+sort(TausCorr, decreasing = T)
 
 
 GammasCorrMAtrix = cor(data[,which(Epsilons == T)], method = "spearman")
 
-factaalerror = fa(GammasCorrMAtrix, 4)
 
+```
+
+## 3. Correlation of all parameters across models
+
+The following graph plots the network of all parameters, across all models. The color as well as the first number on the nodes indicates parameter type. Correlations above .3 are illustrated with lines, and position. Positive correlations are illustrated with green lines and negative correlations are illustrated with red lines. Clsuters of tau, epsilon and gamma emerge
+
+
+
+```{r}
 library(psych)
-corMatrix = cor(data[,-c(which(colnames(data) == "EXPERIMENT"),
-which(colnames(data) == "ï..SUBJ.ID") )])
-
- fa.parallel(data, fm = 'minres', fa = 'fa')
-factaal = fa(data, 15)
-
-
 library(qgraph)
-
+for ( i in 1:length(colnames(data))){
+  data[,i] = scale(data[,i])
+}
 
 models = unique(modelNames)
 
 
 Listmodels = list(which(modelNames ==models[1]))
 
-for (i in 1: length(models)){
+for (i in 2: length(models)){
 Listmodels =  append(Listmodels, list(which(modelNames ==models[i])))}
 
 params = unique(paramNames)
 Listparams = list(which(paramNames ==params[1]))
 
-for (i in 1:length(params)){
+for (i in 2:length(params)){
 Listparams =  append(Listparams, list(which(paramNames ==params[i])))}
 
 
-modelFAC = as.numeric(as.factor(modelNames))
-paramFAC = as.numeric(as.factor(paramNames))
+modelFAC = as.factor(modelNames)
+paramFAC = as.factor(paramNames)
 
 
 realNames = colnames(data)
@@ -175,14 +218,261 @@ colnames(data)  = seq(1:length(colnames(data)))
 for (c in 1:dim(data)[2]){
 colnames(data)[c] = paste0(paramFAC[c], "_" , modelFAC[c])
 }
-qgraph(cor(data), minimum = .3, layout = "spring", vsize = 4, groups = Listparams, legend = T, graph = "pcor")
+qgraph(cor(data), minimum = .3, layout = "spring", vsize = 5, groups = Listparams, graph = "cor")
+
+```
+
+1 alpha   
+2 beta
+3 chi
+4 delta
+5 epsilon
+6 gamma
+7 iota
+8 kappa
+9 lambda
+10 mu
+11 nu
+12 omega
+13 phi
+14 psi
+15 rho
+16 sigma
+17 tau
+18 theta
+19 upsilon
 
 
-qgraph(cor(data), minimum = .3, layout = "spring", vsize = 4, groups = Listmodels, grap)
+TO DO: Group parameters more precisely after roel in the model porb. weighting, subjective values, noise....
+Known: Epsilon = response noise, Gamma = Curvature, Tau = ~ probability weighting 
+Those clusters 
 
-          
-FactAnalRes = fa(corMatrix,5, rotate = "none", scores = "Bartlett")
 
+
+
+
+Here, color as well as the second number on the node indicates the model 
+
+```{r}
+
+qgraph(cor(data), minimum = .3, layout = "spring", vsize = 4, groups = Listmodels)
+
+as.data.frame(cbind(seq(1:length(models)), models ))
+  
+```
+
+Now the same thing, but only  for gamma, epsilon  and tau.
+
+
+
+```{r}
+
+dataRaw = read.csv("data.csv", sep = ";")
+data2Raw = read.csv("gain_parameters.csv", sep = ";")
+colnames(data2Raw)[1:2]= colnames(dataRaw)[1:2]
+cols <- intersect(colnames(dataRaw), colnames(data2Raw))
+
+data2Raw = data2Raw[,order(names(data2Raw))]
+dataRaw = dataRaw[,order(names(dataRaw))]
+dataRaw = rbind(dataRaw[,cols],data2Raw[,cols])
+
+Experiment = dataRaw$EXPERIMENT
+Id = dataRaw$ï..SUBJ.ID
+#remove these varibales from the datafile ued for the analysis
+dataRaw= dataRaw[,-c(which(colnames(dataRaw) == "EXPERIMENT"),
+which(colnames(dataRaw) == "ï..SUBJ.ID") )]
+
+paramNames = sub('.*\\_', '', colnames(dataRaw))
+
+dataEG = dataRaw[, paramNames %in% c("gamma", "epsilon", "tau")]
+modelNamesEG = word(colnames(dataEG),1, sep = "\\_")
+paramNamesEG = sub('.*\\_', '', colnames(dataEG))
+
+numParamModelEG = summary(as.factor(modelNamesEG))
+
+
+modelsEG = unique(modelNamesEG)
+
+
+ListmodelsEG = list(which(modelNamesEG ==modelsEG[1]))
+
+for (i in 1: length(modelsEG)){
+ListmodelsEG =  append(ListmodelsEG, list(which(modelNamesEG ==modelsEG[i])))}
+
+paramsEG = unique(paramNamesEG)
+ListparamsEG = list(which(paramNamesEG ==paramsEG[1]))
+
+for (i in 1:length(paramsEG)){
+ListparamsEG =  append(ListparamsEG, list(which(paramNamesEG ==paramsEG[i])))}
+
+
+modelFACEG = as.factor(modelNamesEG)
+paramFACEG = as.factor(paramNamesEG)
+
+
+realNamesEG = colnames(dataEG)
+colnames(dataEG)  = seq(1:length(colnames(dataEG)))
+for (c in 1:dim(dataEG)[2]){
+#colnames(dataEG)[c] = paste0(paramFACEG[c], "_" , modelFACEG[c])
+colnames(dataEG)[c] = paste0(modelFACEG[c])
+}
+
+qgraph(cor(dataEG), minimum = .3, layout = "spring", vsize = 7, groups = ListparamsEG)
+
+
+
+
+
+```
+
+green = epsilon, light blue = gamma, purple = tau
+
+To DO: find a good analysis to prove these clsuters, factors. Include fit of the models in this visulaization and analysis, as well as the variation of parameter values between samples,
+```{r,}  
+
+
+PCAres = principal(cor(data), nfactors =19, rotate = "varimax")
+summary(PCAres)
+print(PCAres)
+
+
+plot(seq(1:10),PCAres$values[1:10], type = "l", ylab ="Eigenvalues", xlab="No Factor", ylim =c(0,25)) 
+abline(h = 1)
+
+sort(abs(PCAres$loadings[,1]), decreasing = T)[1:20]
+
+#write.csv(PCAres$loadings[,1:5], file = "PCLoadingsidenticalremoved.csv")
+
+sort(abs(PCAres$loadings[,2]), decreasing = T)[1:20]
+
+
+sort(abs(PCAres$loadings[,3]), decreasing = T)[1:20]
+
+
+sort(abs(PCAres$loadings[,4]), decreasing = T)[1:20]
+
+sort(abs(PCAres$loadings[,5]), decreasing = T)[1:20]
+
+
+```
+
+
+visualization of the component structure. The color indicate on which component the parameter had the highest loading. The size of the node is a linear function of the loading. the factors are sorted by Eigenvalue.
+
+```{r}
+maxLoadings = maxLoadingsabs = rep(NA, length(paramNames))
+for (i in 1:length(paramNames)){
+maxLoadings[i] = which(PCAres$loadings[i,1:19] == max(PCAres$loadings[i,1:19]))
+maxLoadingsabs[i] = max(abs(PCAres$loadings[i,1:19]))
+}
+
+FactorL = list(which(maxLoadings ==1))
+
+for (i in 2:19){
+FactorL =  append(FactorL, list(which(maxLoadings ==i)))}
+
+names(FactorL) = colnames(PCAres$loadings)[1:19]
+
+
+maxLoadingsabs =5*maxLoadingsabs
+
+maxLoadingsabs = setNames(maxLoadingsabs, seq(1:length(paramNames)))
+
+
+
+colnames(data)  = seq(1:length(colnames(data)))
+for (c in 1:dim(data)[2]){
+colnames(data)[c] = paste0(paramFAC[c], "_" , modelFAC[c])
+}
+
+qgraph(cor(data), minimum = .3, layout = "spring",  groups = FactorL, graph = "cor", legend = T, vsize = 2*maxLoadingsabs)
+
+```
+
+ In the following visualization only the six extraccted components are illustarted. Again color illustrates the factor on which the parameter has the highest loading and the size is a linear function of the loading on this parameter
+
+```{r}
+maxLoadings = maxLoadingsabs = rep(NA, length(paramNames))
+for (i in 1:length(paramNames)){
+maxLoadings[i] = which(PCAres$loadings[i,1:6] == max(PCAres$loadings[i,1:6]))
+maxLoadingsabs[i] = max(abs(PCAres$loadings[i,1:6]))
+}
+
+FactorL = list(which(maxLoadings ==1))
+
+for (i in 2:6){
+FactorL =  append(FactorL, list(which(maxLoadings ==i)))}
+
+names(FactorL) = colnames(PCAres$loadings)[1:6]
+
+
+maxLoadingsabs =5*maxLoadingsabs
+
+maxLoadingsabs = setNames(maxLoadingsabs, seq(1:length(paramNames)))
+
+
+
+colnames(data)  = seq(1:length(colnames(data)))
+for (c in 1:dim(data)[2]){
+colnames(data)[c] = paste0(paramFAC[c], "_" , modelFAC[c])
+}
+
+qgraph(cor(data), minimum = .3, layout = "spring",  groups = FactorL, graph = "cor", legend = T, vsize = 2*maxLoadingsabs)
+
+```
+
+Calculation of a profile for each model based on the average , absolute loadings of the model's parameters on the factor. 
+
+```{r}
+
+Profiles =array(NA, dim = c(length(models), 8))
+i = 1
+for(p in 1:6){
+for(m in 1:length(models)){
+Profiles[m, p]=(sum(abs(PCAres$loadings[which(modelNames == models[m]),p]))/CorrModelParams$nPars[m])
+i = i+CorrModelParams$nPars[m]
+Profiles[m,7] = sumBIC[which(names(sumBIC) == models[m])]
+Profiles[m,8] = CorrModelParams$meanExpCV[CorrModelParams$Name == models[m]]
+}
+  }
+
+head(Profiles)
+
+colnames(Profiles) = c(colnames(PCAres$loadings)[1:6],
+                       #"PCA5","PCA6",
+                       "fit", "ExpCV")
+
+Profiles = as.data.frame(Profiles)
+
+```
+
+Predict model fit (summed BIC) with the models Profiles
+```{r}
+
+modelFit = lm(fit ~ RC1*RC6 +RC2*RC6 +. - ExpCV, Profiles)
+summary(modelFit)
+
+library(BayesFactor)
+modelBF= generalTestBF(fit ~ RC1*RC6 +RC2*RC6 +. - ExpCV, Profiles)
+
+sort(modelBF, decreasing  = T)[1:10]
+
+```
+
+Predict variation between experiments average coefficient of variation of the model's parameters between the experiments.
+
+```{r}
+modelExpCV = lm(ExpCV ~. - fit, Profiles)
+summary(modelExpCV)
+
+modelBF= generalTestBF(ExpCV ~ RC1*RC6 +RC2*RC6 +. - fit, Profiles)
+
+sort(modelBF, decreasing  = T)[1:10]
+
+```
+
+      
+```{r, eval = F}        
 
 -c(which(colnames(data) == "EXPERIMENT"),
 which(colnames(data) == "ï..SUBJ.ID") ) 
@@ -199,14 +489,11 @@ CorrModelParams[!(CorrModelParams$Name %in% modelNames[which(Epsilons == T)]),4]
 # CorrModelParams[!(CorrModelParams$Name %in% modelNames[which(Gammas == T)]),4]
 
 
-qgraph(cor(data[, modelNames %in% goodfitnames]), minimum = .3, threshold = .3, layout = "spring", vsize = 4)
-
-
 ```
 
-3. Check for differences between Experiments
+### Check for differences between Experiments
 
-```{r}
+```{r, eval = F}
 ###  Diffferences between Experiments
 
 anova(lm(CPT.TK__epsilon~EXPERIMENT, data = data))
@@ -219,10 +506,4 @@ with(data, tapply(CPT.TK__gamma, EXPERIMENT, mean))
 with(data, tapply(CPT.TK__gamma, EXPERIMENT, median))
 ```
 
-
-Quesiotn for further analyses, how much variance does one parameter in onemodel explain in comparable parameters in the other parameters.
-Considering the trade-off between the correlation of parameters, the fit to the data, and tje correspondece, of a model's parameters wiht corresponding parameters in the other models. 
-Consider the differences between the experimens, identify those situations, where the models make disting predictions.
-Mayeb idetify those experiemns and choice trial, where the different models make most distinct predictions.
-
-Historical analysis of the correlation, number of parameters 
+needs to be elaborated further
