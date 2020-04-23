@@ -14,12 +14,24 @@ library(stringr)
 
 ```{r load}
 data = read.csv("data.csv", sep = ";")
+dataFit = read.csv("mixed_bic_values.csv", sep = ";")
+#str(dataFit)
+#sort(apply(dataFit[,3:56],2,mean))
+goodfitnames = names(which(apply(dataFit[,3:56],2,mean) <111.39249))
+
+meanBIC = apply(dataFit[,3:56], 2, mean)
+
+Experiment = data$EXPERIMENT
+Id = data$ï..SUBJ.ID
+data= data[,-c(which(colnames(data) == "EXPERIMENT"),
+which(colnames(data) == "ï..SUBJ.ID") )]
+
 ```
 
 
 
 ```{r}
-colnames(data)
+#colnames(data)
 
 data = data[ , order(names(data))]
 #colnames(data)
@@ -29,6 +41,15 @@ paramNames = sub('.*\\_', '', colnames(data))
 
 numParamModel = summary(as.factor(modelNames))
 
+#paramNames
+
+
+#data = data[, modelNames %in% goodfitnames]
+#data = data[, paramNames %in% c("gamma", "epsilon")]
+modelNames = word(colnames(data),1, sep = "\\_")
+paramNames = sub('.*\\_', '', colnames(data))
+
+numParamModel = summary(as.factor(modelNames))
 
 ```
 
@@ -67,7 +88,24 @@ accNumbParams = cumsum(numParamModel)[m]
 
 colnames(CorrModelParams) = c("Name", "nPars", "maxCor", "meanCor", "Pars")
 
+for ( m in 1:length(CorrModelParams[,1])){
+  
+  CorrModelParams$meanFit[m] = meanBIC[which(names(meanBIC) == CorrModelParams$Name[m])]
+  
+  
+}
+
+cor.test(CorrModelParams$meanFit, CorrModelParams$meanCor)
+plot(CorrModelParams$meanFit, CorrModelParams$meanCor)
+
 head(CorrModelParams)
+
+CorrModelParams[order(CorrModelParams$meanCor, decreasing = T),]
+
+#the larger the numbe rof params, the smaller the correlations
+cor.test(CorrModelParams$nPars, CorrModelParams$meanCor)
+
+
 
 
 ```
@@ -85,18 +123,69 @@ Sigmas = str_detect(colnames(data), "sigma")
 Epsilons = str_detect(colnames(data), "epsilon")
 CPT = str_detect(colnames(data), "CPT")
 Gammas = str_detect(colnames(data), "gamma")
+
 ## Mean correlation of model specific epsilon, wiht other epsilons ___ must consider rank order correlation
 EpsilonsCorr = apply(abs(cor(data[,which(Epsilons == T)], method = "spearman")),2,mean)
 #kable(round(cor(data[,which(Epsilons == T)]),2))
 mean(cor(data[,which(Epsilons == T)], method = "spearman"))
+sort(EpsilonsCorr, decreasing = T)
 
-EpsilonsCorr
 GammasCorr = apply(abs(cor(data[,which(Gammas == T)], method = "spearman")),2,mean)
 # kable(round(cor(data[,which(Gammas == T)]),2))
 mean(cor(data[,which(Gammas == T)], method = "spearman"))
-GammasCorr
+sort(GammasCorr, decreasing = T)
 
 
+GammasCorrMAtrix = cor(data[,which(Epsilons == T)], method = "spearman")
+
+factaalerror = fa(GammasCorrMAtrix, 4)
+
+library(psych)
+corMatrix = cor(data[,-c(which(colnames(data) == "EXPERIMENT"),
+which(colnames(data) == "ï..SUBJ.ID") )])
+
+ fa.parallel(data, fm = 'minres', fa = 'fa')
+factaal = fa(data, 15)
+
+
+library(qgraph)
+
+
+models = unique(modelNames)
+
+
+Listmodels = list(which(modelNames ==models[1]))
+
+for (i in 1: length(models)){
+Listmodels =  append(Listmodels, list(which(modelNames ==models[i])))}
+
+params = unique(paramNames)
+Listparams = list(which(paramNames ==params[1]))
+
+for (i in 1:length(params)){
+Listparams =  append(Listparams, list(which(paramNames ==params[i])))}
+
+
+modelFAC = as.numeric(as.factor(modelNames))
+paramFAC = as.numeric(as.factor(paramNames))
+
+
+realNames = colnames(data)
+colnames(data)  = seq(1:length(colnames(data)))
+for (c in 1:dim(data)[2]){
+colnames(data)[c] = paste0(paramFAC[c], "_" , modelFAC[c])
+}
+qgraph(cor(data), minimum = .3, layout = "spring", vsize = 4, groups = Listparams, legend = T, graph = "pcor")
+
+
+qgraph(cor(data), minimum = .3, layout = "spring", vsize = 4, groups = Listmodels, grap)
+
+          
+FactAnalRes = fa(corMatrix,5, rotate = "none", scores = "Bartlett")
+
+
+-c(which(colnames(data) == "EXPERIMENT"),
+which(colnames(data) == "ï..SUBJ.ID") ) 
 
 # 
 # ## Mean absolute Param Correlations in Models with Epsilon
@@ -110,10 +199,12 @@ CorrModelParams[!(CorrModelParams$Name %in% modelNames[which(Epsilons == T)]),4]
 # CorrModelParams[!(CorrModelParams$Name %in% modelNames[which(Gammas == T)]),4]
 
 
+qgraph(cor(data[, modelNames %in% goodfitnames]), minimum = .3, threshold = .3, layout = "spring", vsize = 4)
+
 
 ```
 
-3. CHeck for differences between Experiments
+3. Check for differences between Experiments
 
 ```{r}
 ###  Diffferences between Experiments
@@ -126,4 +217,12 @@ round(with(data, tapply(CPT.TK__epsilon, EXPERIMENT, median)),3)
 anova(lm(CPT.TK__gamma~EXPERIMENT, data = data))
 with(data, tapply(CPT.TK__gamma, EXPERIMENT, mean))
 with(data, tapply(CPT.TK__gamma, EXPERIMENT, median))
-  ```
+```
+
+
+Quesiotn for further analyses, how much variance does one parameter in onemodel explain in comparable parameters in the other parameters.
+Considering the trade-off between the correlation of parameters, the fit to the data, and tje correspondece, of a model's parameters wiht corresponding parameters in the other models. 
+Consider the differences between the experimens, identify those situations, where the models make disting predictions.
+Mayeb idetify those experiemns and choice trial, where the different models make most distinct predictions.
+
+Historical analysis of the correlation, number of parameters 
