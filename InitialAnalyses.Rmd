@@ -34,6 +34,7 @@ dataFit = rbind(dataFit[,cols],dataFit2[,cols])
 #sort(apply(dataFit[,3:56],2,mean))
 
 # retun model names with mean BIC better than Baseline
+<<<<<<< HEAD
 #goodfitnames = names(which(apply(dataFit[,3:56],2,sum) <sum(dataFit[,"Baseline"])))
 
 goodfitnames = names(which(apply(dataFit[,3:55],2,sum) <sum(dataFit[,"Baseline"])))
@@ -44,6 +45,15 @@ sumBIC = apply(dataFit[,3:55], 2, sum)
 Experiment = data$EXPERIMENT
 Id = data$ï..SUBJ.ID
 #remove these varibales from the datafile used for the analysis
+=======
+goodfitnames = names(which(apply(dataFit[,3:56],2,mean) <mean(dataFit[,"Baseline"])))
+
+meanBIC = apply(dataFit[,3:56], 2, mean)
+#create vectors for Experiemnt and ID
+Experiment = data$EXPERIMENT
+Id = data$ï..SUBJ.ID
+#remove these varibales from the datafile ued for the analysis
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 data= data[,-c(which(colnames(data) == "EXPERIMENT"),
 which(colnames(data) == "ï..SUBJ.ID") )]
 #remove identical parameters
@@ -140,7 +150,11 @@ There seeems to be some relation between the model fit, (the average indiviudal 
 
 ```{r}
 
+<<<<<<< HEAD
 plot(CorrModelParams$meanFit[ CorrModelParams$meanFit<sum(dataFit[,"Baseline"])], CorrModelParams$meanCor[ CorrModelParams$meanFit<sum(dataFit[,"Baseline"])], xlab = "sumBIC", ylab ="meanCor")
+=======
+plot(CorrModelParams$meanFit[ CorrModelParams$meanFit<mean(dataFit[,"Baseline"])], CorrModelParams$meanCor[ CorrModelParams$meanFit<mean(dataFit[,"Baseline"])], xlab = "meanBIC", ylab ="meanCor")
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 plot(CorrModelParams$nPars, CorrModelParams$meanCor)
 
 ```
@@ -172,7 +186,11 @@ sort(GammasCorr, decreasing = T)
 
 TausCorr = apply(abs(cor(data[,which(Taus == T)], method = "spearman")),2,mean)
 # kable(round(cor(data[,which(Gammas == T)]),2))
+<<<<<<< HEAD
 mean(abs(cor(data[,which(Taus == T)], method = "spearman")))
+=======
+mean(cor(data[,which(Taus == T)], method = "spearman"))
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 sort(TausCorr, decreasing = T)
 
 
@@ -180,12 +198,25 @@ GammasCorrMAtrix = cor(data[,which(Epsilons == T)], method = "spearman")
 
 
 ```
+<<<<<<< HEAD
 
 ## 3. Correlation of all parameters across models
 
 The following graph plots the network of all parameters, across all models. The color as well as the first number on the nodes indicates parameter type. Correlations above .3 are illustrated with lines, and position. Positive correlations are illustrated with green lines and negative correlations are illustrated with red lines. Clsuters of tau, epsilon and gamma emerge
 
 
+=======
+
+## 3. Correlation of all parameters across models
+
+The following graph plots the network of all parameters, across all models. The color as well as the first number on the nodes indicates parameter type. Correlations above .3 are illustrated with lines, and position. Positive correlations are illustrated with green lines and negative correlations are illustrated with red lines. Clsuters of tau, epsilon and gamma emerge
+
+
+
+```{r}
+library(psych)
+library(qgraph)
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 
 ```{r}
 library(psych)
@@ -209,7 +240,11 @@ for (i in 2:length(params)){
 Listparams =  append(Listparams, list(which(paramNames ==params[i])))}
 
 
+<<<<<<< HEAD
 modelFAC = as.factor(modelNames)
+=======
+modelFAC = as.numeric(as.factor(modelNames))
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 paramFAC = as.factor(paramNames)
 
 
@@ -218,7 +253,11 @@ colnames(data)  = seq(1:length(colnames(data)))
 for (c in 1:dim(data)[2]){
 colnames(data)[c] = paste0(paramFAC[c], "_" , modelFAC[c])
 }
+<<<<<<< HEAD
 qgraph(cor(data), minimum = .3, layout = "spring", vsize = 5, groups = Listparams, graph = "cor")
+=======
+qgraph(cor(data), minimum = .3, layout = "spring", vsize = 4, groups = Listparams, legend = T, graph = "cor")
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 
 ```
 
@@ -268,6 +307,7 @@ Now the same thing, but only  for gamma, epsilon  and tau.
 ```{r}
 
 dataRaw = read.csv("data.csv", sep = ";")
+<<<<<<< HEAD
 data2Raw = read.csv("gain_parameters.csv", sep = ";")
 colnames(data2Raw)[1:2]= colnames(dataRaw)[1:2]
 cols <- intersect(colnames(dataRaw), colnames(data2Raw))
@@ -275,6 +315,8 @@ cols <- intersect(colnames(dataRaw), colnames(data2Raw))
 data2Raw = data2Raw[,order(names(data2Raw))]
 dataRaw = dataRaw[,order(names(dataRaw))]
 dataRaw = rbind(dataRaw[,cols],data2Raw[,cols])
+=======
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 
 Experiment = dataRaw$EXPERIMENT
 Id = dataRaw$ï..SUBJ.ID
@@ -321,6 +363,7 @@ qgraph(cor(dataEG), minimum = .3, layout = "spring", vsize = 7, groups = Listpar
 
 
 
+<<<<<<< HEAD
 
 
 ```
@@ -335,13 +378,24 @@ PCAres = principal(cor(data), nfactors =19, rotate = "varimax")
 summary(PCAres)
 print(PCAres)
 
+=======
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 
 plot(seq(1:10),PCAres$values[1:10], type = "l", ylab ="Eigenvalues", xlab="No Factor", ylim =c(0,25)) 
 abline(h = 1)
 
+<<<<<<< HEAD
 sort(abs(PCAres$loadings[,1]), decreasing = T)[1:20]
 
 #write.csv(PCAres$loadings[,1:5], file = "PCLoadingsidenticalremoved.csv")
+=======
+```
+
+green = epsilon, light blue = gamma, purple = tau
+
+To DO: find a good analysis to prove these clsuters, factors. Include fit of the models in this visulaization and analysis, as well as the variation of parameter values between samples,
+
+>>>>>>> b9f0c874f16a0e62e247df560ac2afe9851e7d34
 
 sort(abs(PCAres$loadings[,2]), decreasing = T)[1:20]
 
@@ -471,6 +525,10 @@ sort(modelBF, decreasing  = T)[1:10]
 
 ```
 
+      
+```{r, eval = F}        
+
+      
       
 ```{r, eval = F}        
 
